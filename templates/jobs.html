@@ -1,0 +1,95 @@
+<html>
+<head>
+{% include 'scripts.html' %}
+
+</head>
+<body>
+<div class="container">
+ 
+{% if jobs %}
+<div align="center" ><h1>Список вакансий</h1></div>
+<div class="collection">
+{% for j in jobs %}
+<div style="padding-left:15vw;" class="collection-item">
+<b>{{ j.name }}</b> <i>{{ j.job_desc }}</i> З/Р {{ j.salary }} у.е.
+{% if j.experience == 0 %} без опыта работы {% else %} с опытом {{ j.experience }} лет {% endif %}
+<a href="#" onclick="fileJob(`{{ j.name }}`, `{{ j.job_desc }}`)">Откликнуться</a>
+</div>
+	{% endfor %}
+      </div>
+{% else %}
+<div class="text-center"><h1>На данный момент вакансий нет</h1></div>
+{% endif %}
+<a href="/contracts">Контракты</a>
+
+<!-- Modal -->
+<!-- Modal Trigger -->
+  
+
+  <!-- Modal Structure -->
+  <div id="modal1" class="modal">
+    <div class="modal-content">
+      <h4>Выберите работника</h4>
+      
+  {% if employee %}
+  
+    <select id="semployees" class="browser-default">
+  {% for e in employee %}
+      <option value="{{e.id}}">{{e.name}} {{e.surname}} {{e.third_name}}</option>
+  {% endfor %}
+  </select>
+  {% endif %}
+        
+    </div>
+    <div class="modal-footer">
+      <a href="#!" 
+      onclick="postJob()" class="modal-close waves-effect waves-green btn-flat">Ok</a>
+    </div>
+  </div>
+  
+  
+</div>
+
+<script>
+	$(function() {
+		$('.modal').modal();
+		$( "#semployees" ).change(function() {
+			localStorage.setItem('eid', $( "#semployees" ).val());
+		});
+	});
+	
+	function postAjax(url, data,
+		success = function (data) {
+		    console.log(data)
+		},
+		error = function (xhr, status, error1) {
+		    console.log(error1);
+		}) {
+		$.ajax({
+		    url: url,
+		    type: "POST",
+		    dataType: "json",
+		    contentType: "application/json; charset=utf-8",
+		    data: JSON.stringify(data),
+		    success: success,
+		    error: error,
+		})
+	}
+	
+	function fileJob(ename, jjob) {
+		localStorage.setItem('ename', ename);
+		localStorage.setItem('jjob', jjob);
+		$('.modal').modal('open');
+		//postAjax('/fileJob', {'ename' : ename, 'id' : 1, 'job' : jjob, 'com' : 1100});
+	}
+	
+	function postJob(id) {
+		let ename = localStorage.getItem('ename');
+		let jjob = localStorage.getItem('jjob');
+		let eid = localStorage.getItem('eid');
+		postAjax('/fileJob', {'ename' : ename, 'id' : eid, 'job' : jjob, 'com' : 1100});
+	}
+</script>
+
+</body>
+</html>

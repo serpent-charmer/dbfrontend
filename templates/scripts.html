@@ -1,0 +1,30 @@
+<title>
+	Бюро трудоустройства
+</title>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+
+<script>
+function postAjax(url, data,
+		successf = function (data) {
+		    console.log(data)
+		},
+		errorf = function (xhr, status, error1) {
+		    console.log(error1);
+		}) {
+		$.ajax({
+		    url: url,
+		    type: "POST",
+		    dataType: "json",
+		    contentType: "application/json; charset=utf-8",
+		    data: JSON.stringify(data),
+		    success: successf,
+		    error: errorf,
+		})
+	}
+</script>

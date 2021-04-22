@@ -1,0 +1,86 @@
+<html>
+<head>
+{% include 'scripts.html' %}
+<style>
+	.material-icons {
+		user-select: none;
+		transition: all 0.3s ease 0s;
+		border-radius:15px;
+	}
+	.material-icons:hover {
+		cursor: pointer;
+	}
+	
+	.material-icons.del:hover {
+		
+		background-color: red;
+		color: white;
+
+	}
+	
+	.material-icons.pay:hover {
+		
+		background-color: green;
+		color: white;
+
+	}
+	.contractc {
+	}
+	
+</style>
+</head>
+<body>
+<div class="container">
+{% if contracts %}
+<div align="center"><h1>Список контрактов</h1></div>
+<div class="collection">
+{% for c in contracts %}
+	<div class="contractc">
+	<div style="padding-left:5vw;" class="collection-item">
+	<b>{{ c.ename }}</b>
+	<i>{{ c.name }} {{ c.surname }} {{ c.third_name }}</i> ({{ c.hired }})
+	{% if c.payed %}
+	Оплачено
+	{% else %}
+	Не оплачено {{ c.comissions }} р.
+	{% endif %}
+
+	
+	</div>
+	<div style="display:flex; justify-content:end;">
+	<i class="material-icons del" onclick="delContract({{c.id}})">delete</i>
+	<i class="material-icons pay" onclick="pay({{c.id}})">attach_money</i>
+	</div>
+	</div>
+{% endfor %}
+</div>
+{% endif %}
+<a href="/jobs">Вакансии</a>
+<div id="modal1" class="modal">
+    <div class="modal-content">
+      <h4>Оплатите контракт</h4>
+      </div>
+       <div class="modal-footer">
+      <a href="#!" class="modal-close waves-effect waves-green btn-flat">Ok</a>
+    </div>
+      </div>
+</div>
+<script>
+	$(function () {
+		$('.modal').modal();
+	});
+	function delContract(id) {
+		postAjax(url='/delContract', data={ 'id' : id }, successf = function (data) {
+		    console.log(data)
+		}, errorf = function(xhr, status, error1) {
+		if(xhr.status == 403) {
+			$('.modal').modal('open');
+		}
+		});
+	}
+	function pay(id) {
+		postAjax('/payContract', { 'id' : id });
+	}
+</script>
+</body>
+</html>
