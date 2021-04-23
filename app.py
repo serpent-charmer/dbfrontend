@@ -80,6 +80,24 @@ def postEmployer():
                 cursor.execute('INSERT INTO employer (name, address, phone_number) VALUES (%s, %s, %s)', (ename, address, phone_number))
                 conn.commit()
     return jsonify('ok')
+    
+@app.route('/postEmployee', methods=['POST'])
+def postEmployee():
+    if request and request.json:
+        ecname = request.json['ecname']
+        ecsurname = request.json['ecsurname']
+        ecthirdname = request.json['ecthirdname']
+        ecjob = request.json['ecjob']
+        ecmail = request.json['ecmail']
+        
+        
+        
+        conn = get_connection('bureau')
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute('INSERT INTO employee (name, surname, third_name, profession, email) VALUES (%s, %s, %s, %s, %s)', (ecname, ecsurname, ecthirdname, ecjob, ecmail))
+                conn.commit()
+    return jsonify('ok')
 
 @app.route('/fileJob', methods=['POST'])
 def fileJob():

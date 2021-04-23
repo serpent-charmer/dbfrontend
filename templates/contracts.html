@@ -64,10 +64,83 @@
       <a href="#!" class="modal-close waves-effect waves-green btn-flat">Ok</a>
     </div>
       </div>
+      
+      
+      <div id="modal-form-employee" class="modal">
+    <div class="modal-content">
+      <h4>Зарегистрироваться</h4>
+      
+  
+        
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="" id="ecname" type="text" class="validate">
+      <label class="active" for="first_name2">Имя</label>
+    </div>
+  </div>
+  
+  
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="" id="ecsurname" type="text" class="validate">
+      <label class="active" for="first_name2">Фамилия</label>
+    </div>
+  </div>
+  
+  
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="" id="ecthirdname" type="text" class="validate">
+      <label class="active" for="first_name2">Отчество</label>
+    </div>
+  </div>
+  
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="" id="ecjob" type="text" class="validate">
+      <label class="active" for="first_name2">Профессия</label>
+    </div>
+  </div>
+  
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="" id="ecmail" type="text" class="validate">
+      <label class="active" for="first_name2">Email</label>
+    </div>
+  </div>
+        
+    </div>
+    <div class="modal-footer">
+      <a href="#!" 
+      onclick="postEmployee()" class="modal-close waves-effect waves-green btn-flat">Ok</a>
+    </div>
+  </div>
+  <div align="center">
+
+  <a class="waves-effect waves-light btn" href="#" onclick="createEmployee()">Зарегистрироваться</a>
+</div>
 </div>
 <script>
 	$(function () {
 		$('.modal').modal();
+		$( "#ecname" ).change(function() {
+			localStorage.setItem('ecname', $( "#ecname" ).val());
+		});
+		$( "#ecsurname" ).change(function() {
+			localStorage.setItem('ecsurname', $( "#ecsurname" ).val());
+		});
+		
+		$( "#ecthirdname" ).change(function() {
+			localStorage.setItem('ecthirdname', $( "#ecthirdname" ).val());
+		});
+		
+		$( "#ecjob" ).change(function() {
+			localStorage.setItem('ecjob', $( "#ecjob" ).val());
+		});
+		
+		$( "#ecmail" ).change(function() {
+			localStorage.setItem('ecmail', $( "#ecmail" ).val());
+		});
 	});
 	function delContract(id) {
 		postAjax(url='/delContract', data={ 'id' : id }, successf = function (data) {
@@ -80,6 +153,20 @@
 	}
 	function pay(id) {
 		postAjax('/payContract', { 'id' : id });
+	}
+	
+	function createEmployee() {
+		$('#modal-form-employee').modal('open');
+	}
+	
+	function postEmployee() {
+		let ecname = localStorage.getItem('ecname');
+		let ecsurname = localStorage.getItem('ecsurname');
+		let ecthirdname = localStorage.getItem('ecthirdname');
+		let ecjob = localStorage.getItem('ecjob');
+		let ecmail = localStorage.getItem('ecmail');
+		
+		postAjax('/postEmployee', { 'ecname' : ecname, 'ecsurname' : ecsurname, 'ecthirdname' : ecthirdname, 'ecjob' : ecjob, 'ecmail' : ecmail});
 	}
 </script>
 </body>
