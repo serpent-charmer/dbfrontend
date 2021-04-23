@@ -4,9 +4,75 @@
 </head>
 <body>
 <div style="margin-top:5vh;" class="text-center container">
- 
+<div style="display:flex; justify-content:space-between;">
 <a class="waves-effect waves-light btn" href="/jobs">ВАКАНСИИ</a>
+<a class="waves-effect waves-light btn" href="/contracts">КОНТРАКТЫ</a>
+</div>
+
+<div id="modal1" class="modal">
+    <div class="modal-content">
+      <h4>Создать фирму</h4>
+      
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="" id="ename" type="text" class="validate">
+      <label class="active" for="first_name2">Название</label>
+    </div>
+  </div>
+  
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="" id="address" type="text" class="validate">
+      <label class="active" for="first_name2">Адрес</label>
+    </div>
+  </div>
+        
+<div class="row">
+    <div class="input-field col s6">
+      <input value="" id="phone_number" type="text" class="validate">
+      <label class="active" for="first_name2">Тел.номер</label>
+    </div>
+  </div>
+	
+    </div>
+    <div class="modal-footer">
+      <a href="#!" 
+      onclick="postEmployer()" class="modal-close waves-effect waves-green btn-flat">Ok</a>
+    </div>
+  </div>
 
 </div>
+<div align="center">
+
+  <a class="waves-effect waves-light btn" href="#" onclick="createEmployer()">Создать фирму</a>
+</div>
+<script>
+	$(function () {
+		$('.modal').modal();
+		$( "#ename" ).change(function() {
+			localStorage.setItem('ename', $( "#ename" ).val());
+		});
+		$( "#address" ).change(function() {
+			localStorage.setItem('address', $( "#address" ).val());
+		});
+		
+		$( "#phone_number" ).change(function() {
+			localStorage.setItem('phone_number', $( "#phone_number" ).val());
+		});
+	});
+	
+	function createEmployer() {
+		$('.modal').modal('open');
+	}
+	
+	function postEmployer() {
+		$('.modal').modal('open');
+		let ename = localStorage.getItem('ename');
+		let address = localStorage.getItem('address');
+		let phone_number = localStorage.getItem('phone_number');
+		postAjax('/postEmployer', {'ename' : ename, 'address' : address, 'phone_number' : phone_number});
+	}
+	
+</script>
 </body>
 </html>

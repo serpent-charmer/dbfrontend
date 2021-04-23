@@ -13,6 +13,9 @@
 <div style="padding-left:15vw;" class="collection-item">
 <b>{{ j.name }}</b> <i>{{ j.job_desc }}</i> З/Р {{ j.salary }} у.е.
 {% if j.experience == 0 %} без опыта работы {% else %} с опытом {{ j.experience }} лет {% endif %}
+
+</div>
+<div style="display:flex; justify-content:end;">
 <a href="#" onclick="fileJob(`{{ j.name }}`, `{{ j.job_desc }}`)">Откликнуться</a>
 </div>
 	{% endfor %}
@@ -20,13 +23,8 @@
 {% else %}
 <div class="text-center"><h1>На данный момент вакансий нет</h1></div>
 {% endif %}
-<a href="/contracts">Контракты</a>
 
-<!-- Modal -->
-<!-- Modal Trigger -->
-  
 
-  <!-- Modal Structure -->
   <div id="modal1" class="modal">
     <div class="modal-content">
       <h4>Выберите работника</h4>
@@ -48,6 +46,64 @@
   </div>
   
   
+  <div id="modal-form-vacancy" class="modal">
+    <div class="modal-content">
+      <h4>Создать вакансию</h4>
+      
+  {% if employer %}
+  
+    <select id="semployers" class="browser-default">
+  {% for em in employer %}
+      <option value="{{em.id}}">{{em.name}}</option>
+  {% endfor %}
+  </select>
+  {% endif %}
+        
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="" id="jobname" type="text" class="validate">
+      <label class="active" for="first_name2">Профессия</label>
+    </div>
+  </div>
+  
+  
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="" id="experience" type="text" class="validate">
+      <label class="active" for="first_name2">Опыт работы</label>
+    </div>
+  </div>
+  
+  
+  <div class="row">
+    <div class="input-field col s6">
+      <input value="15000" id="salary" type="text" class="validate">
+      <label class="active" for="first_name2">З/П</label>
+    </div>
+  </div>
+        
+    </div>
+    <div class="modal-footer">
+      <a href="#!" 
+      onclick="postVacancy()" class="modal-close waves-effect waves-green btn-flat">Ok</a>
+    </div>
+  </div>
+  
+<div>
+<div id="modal-error" class="modal">
+    <div class="modal-content">
+      <h4 id="modal-error-msg">Оплатите контракт</h4>
+      </div>
+       <div class="modal-footer">
+      <a href="#!" class="modal-close waves-effect waves-green btn-flat">Ok</a>
+    </div>
+      </div>
+<a href="/">На главную</a>
+</div>
+<div align="center">
+
+  <a class="waves-effect waves-light btn" href="#" onclick="createVacancy()">Создать вакансию</a>
+</div>
 </div>
 
 <script>
@@ -55,6 +111,20 @@
 		$('.modal').modal();
 		$( "#semployees" ).change(function() {
 			localStorage.setItem('eid', $( "#semployees" ).val());
+		});
+		$( "#semployers" ).change(function() {
+			localStorage.setItem('emid', $( "#semployers" ).val());
+		});
+		$( "#jobname" ).change(function() {
+			localStorage.setItem('jname', $( "#jobname" ).val());
+		});
+		
+		$( "#experience" ).change(function() {
+			localStorage.setItem('exp', $( "#experience" ).val());
+		});
+		
+		$( "#salary" ).change(function() {
+			localStorage.setItem('sal', $( "#salary" ).val());
 		});
 	});
 	
@@ -76,11 +146,29 @@
 		})
 	}
 	
+	function createVacancy() {
+		$('#modal-form-vacancy').modal('open');
+	}
+	
+	function postVacancy() {
+		let emid = localStorage.getItem('emid');
+		let jname = localStorage.getItem('jname');
+		let exp = localStorage.getItem('exp');
+		let sal = localStorage.getItem('sal');
+		postAjax('/postVacancy', {'emid' : emid, 'jname' : jname, 'exp' : exp, 'sal' : sal},
+		successf = function() {}, errorf = function(xhr, status, error) {
+			if(xhr.status == 403) {
+				
+				$('#modal-error-msg').text(`Зарплата ${sal} р. при ${exp} лет опыта?`);
+				$('#modal-error').modal('open');
+			}
+		});
+	}
+	
 	function fileJob(ename, jjob) {
 		localStorage.setItem('ename', ename);
 		localStorage.setItem('jjob', jjob);
-		$('.modal').modal('open');
-		//postAjax('/fileJob', {'ename' : ename, 'id' : 1, 'job' : jjob, 'com' : 1100});
+		$('#modal1').modal('open');
 	}
 	
 	function postJob(id) {

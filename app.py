@@ -27,10 +27,13 @@ def jobs():
             cursor.execute('SELECT * FROM GET_JOBS')
             jobs = cursor.fetchall()
             
+            cursor.execute('SELECT id,name from employer;')
+            employer = cursor.fetchall()
+            
             cursor.execute('SELECT id,name,surname,third_name from employee;')
             employee = cursor.fetchall()
             
-    return render_template('jobs.html', jobs=jobs, employee=employee)
+    return render_template('jobs.html', jobs=jobs, employer=employer, employee=employee)
 
 
 @app.route('/contracts', methods=['GET'])
@@ -41,6 +44,42 @@ def contracts():
             cursor.execute('CALL GET_CONTRACTS()')
             contracts = cursor.fetchall()
     return render_template('contracts.html', contracts=contracts)
+
+@app.route('/postVacancy', methods=['POST'])
+def postVacancy():
+    if request and request.json:
+        emid = request.json['emid']
+        jname = request.json['jname']
+        exp = request.json['exp']
+        sal = request.json['sal']
+        
+        
+        
+        conn = get_connection('bureau')
+        with conn:
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute('CALL CREATE_VACANCY_API(%s, %s, %s, %s)', (emid, jname, exp, sal))
+                    conn.commit()
+                except pymysql.err.OperationalError:
+                    return '', 403
+    return jsonify('ok')
+    
+@app.route('/postEmployer', methods=['POST'])
+def postEmployer():
+    if request and request.json:
+        ename = request.json['ename']
+        address = request.json['address']
+        phone_number = request.json['phone_number']
+        
+        
+        
+        conn = get_connection('bureau')
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute('INSERT INTO employer (name, address, phone_number) VALUES (%s, %s, %s)', (ename, address, phone_number))
+                conn.commit()
+    return jsonify('ok')
 
 @app.route('/fileJob', methods=['POST'])
 def fileJob():

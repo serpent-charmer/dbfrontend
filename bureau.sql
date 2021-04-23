@@ -88,6 +88,17 @@ CREATE PROCEDURE CREATE_VACANCY (IN employer_name VARCHAR(255) CHARSET utf8mb4,
        END//
 DELIMITER ;
 
+DROP procedure IF EXISTS CREATE_VACANCY_API;
+DELIMITER //
+CREATE PROCEDURE CREATE_VACANCY_API (IN employer_id INT(11),  
+									IN job_desc VARCHAR(255) CHARSET utf8mb4,
+                                    IN experience INT(11),
+                                    IN salary INT(11))
+       BEGIN
+		 INSERT INTO vacancy (job_desc, experience, ref_employer, salary) VALUES(job_desc, experience, employer_id, salary);
+       END//
+DELIMITER ;
+
 DROP VIEW GET_JOBS;
 CREATE VIEW GET_JOBS AS SELECT job_desc, name, experience, salary from vacancy left join employer on vacancy.ref_employer = employer.id;
 
