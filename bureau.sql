@@ -29,7 +29,7 @@ CREATE TABLE vacancy (
             ref_employer INT(11) NOT NULL,
             PRIMARY KEY(id),
 			FOREIGN KEY(ref_employer) REFERENCES employer (id),
-            CONSTRAINT not_tester CHECK (job_desc NOT IN ('Тестировщик')) 
+            CONSTRAINT no_trainee_testers CHECK (job_desc NOT IN ('Тестировщик') AND experience <= 1) 
 ) CHARACTER SET utf8mb4;
 
 CREATE TABLE contract (
