@@ -28,7 +28,8 @@ CREATE TABLE vacancy (
             salary INT(11) NOT NULL,
             ref_employer INT(11) NOT NULL,
             PRIMARY KEY(id),
-			FOREIGN KEY(ref_employer) REFERENCES employer (id)
+			FOREIGN KEY(ref_employer) REFERENCES employer (id),
+            CONSTRAINT not_tester CHECK (job_desc NOT IN ('Тестировщик')) 
 ) CHARACTER SET utf8mb4;
 
 CREATE TABLE contract (
@@ -196,7 +197,7 @@ INSERT INTO EMPLOYEE_VIEW (name, surname, third_name, profession, email) VALUES
 
 CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "ФинТех Аналитик", 5, 25000);
 CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "Программист", 2, 35000);
-CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "Ассистент", 0, 5000);
+CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "Тестировщик", 0, 5000);
 CALL CREATE_CONTRACT("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", 1, "ФинТех Аналитик", 150);
 SELECT * from contract;
 delete from contract;
