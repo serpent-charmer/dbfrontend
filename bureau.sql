@@ -1,3 +1,4 @@
+use bureau;
 DROP table IF EXISTS contract;
 DROP table IF EXISTS vacancy ;
 DROP table IF EXISTS employer;
@@ -34,13 +35,11 @@ CREATE TABLE vacancy (
 
 CREATE TABLE contract (
 			id INT(11) AUTO_INCREMENT,
-            ref_employer INT(11) NOT NULL,
             ref_employee INT(11) NOT NULL,
             ref_vacancy INT(11) NOT NULL,
             comissions INT(11) NOT NULL CHECK(comissions > 100),
             payed BOOL DEFAULT FALSE,
             PRIMARY KEY(id),
-            FOREIGN KEY(ref_employer) REFERENCES employer(id),
             FOREIGN KEY(ref_employee) REFERENCES employee (id),
             FOREIGN KEY(ref_vacancy) REFERENCES vacancy (id)
         ) CHARACTER SET utf8mb4;
