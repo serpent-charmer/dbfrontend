@@ -96,9 +96,9 @@ BEGIN
 
 	WHILE @@FETCH_STATUS = 0  
 	begin
-		if @etype = N'Лекции' SET @rs = 1;
-		if @etype = N'Практика' SET @rs = 1;
-		if @etype = N'Лабораторные работы' SET @rs = 1;
+		if @etype = N'Р›РµРєС†РёРё' SET @rs = 1;
+		if @etype = N'РџСЂР°РєС‚РёРєР°' SET @rs = 1;
+		if @etype = N'Р›Р°Р±РѕСЂР°С‚РѕСЂРЅС‹Рµ СЂР°Р±РѕС‚С‹' SET @rs = 1;
 		fetch etype_cur into @etype;
 	end;
 
@@ -138,7 +138,7 @@ DEALLOCATE split_cur;
 DECLARE @msg VARCHAR(255);
 SET @msg = FORMATMESSAGE('Wrong semester period %d %d', @sem_bg, @sem_end);
 
-IF @sem_end - @sem_bg <> 1 and (@sem_season <> N'осень' or @sem_season <> N'весна')
+IF @sem_end - @sem_bg <> 1 and (@sem_season <> N'РѕСЃРµРЅСЊ' or @sem_season <> N'РІРµСЃРЅР°')
 	THROW 60000, @msg, 1;  
 END;
 
@@ -180,8 +180,8 @@ from elective_minimum right join
 elective_stu_link 
 on elective_minimum.id = elective_stu_link.elec_id_ref
 and elective_stu_link.stu_id_ref = @stu_id and elective_minimum.sem_id_ref = @sem_id) = 0
-select N'Выполнен' as N'Минимум';
-else select N'Не выполнен' as N'Минимум';
+select N'Р’С‹РїРѕР»РЅРµРЅ' as N'РњРёРЅРёРјСѓРј';
+else select N'РќРµ РІС‹РїРѕР»РЅРµРЅ' as N'РњРёРЅРёРјСѓРј';
 
 
 
@@ -277,30 +277,30 @@ create view student_view as select id, sname, phone, sgroup_ref from student
 
 GO
 
-EXEC CreateSemester 1, N'2021/2022/осень';
-EXEC CreateSemester 2, N'2022/2023/весна';
+EXEC CreateSemester 1, N'2021/2022/РѕСЃРµРЅСЊ';
+EXEC CreateSemester 2, N'2022/2023/РІРµСЃРЅР°';
 
 
 
 
 insert into sgroup (id, gname) values 
-(1, N'Прикладная математика'),
-(2, N'Прикладная информатика');
-insert into prof (id, sname, phone) values (1, N'Петров Алексей Леонидович', '312312-31231-434');
+(1, N'РџСЂРёРєР»Р°РґРЅР°СЏ РјР°С‚РµРјР°С‚РёРєР°'),
+(2, N'РџСЂРёРєР»Р°РґРЅР°СЏ РёРЅС„РѕСЂРјР°С‚РёРєР°');
+insert into prof (id, sname, phone) values (1, N'РџРµС‚СЂРѕРІ РђР»РµРєСЃРµР№ Р›РµРѕРЅРёРґРѕРІРёС‡', '312312-31231-434');
 
 insert into student_view 
 values 
-(1, N'Иванов Петр Иванович', '131231', 1),
-(2, N'Петров Иван Алексеввич', '131231', 2);
+(1, N'РРІР°РЅРѕРІ РџРµС‚СЂ РРІР°РЅРѕРІРёС‡', '131231', 1),
+(2, N'РџРµС‚СЂРѕРІ РРІР°РЅ РђР»РµРєСЃРµРІРІРёС‡', '131231', 2);
 
 
 
 
 insert into elective_view values 
-(1, 1, 1, N'Технология программирования', 35, N'Практика'),
-(2, 1, 1, N'Теория чисел', 35, N'Лекции'),
-(3, 1, 2, N'Технология программирования', 35, N'Практика'),
-(4, 1, 2, N'Дифференциальные уравнения в экономике', 45, N'Лабораторные работы');
+(1, 1, 1, N'РўРµС…РЅРѕР»РѕРіРёСЏ РїСЂРѕРіСЂР°РјРјРёСЂРѕРІР°РЅРёСЏ', 35, N'РџСЂР°РєС‚РёРєР°'),
+(2, 1, 1, N'РўРµРѕСЂРёСЏ С‡РёСЃРµР»', 35, N'Р›РµРєС†РёРё'),
+(3, 1, 2, N'РўРµС…РЅРѕР»РѕРіРёСЏ РїСЂРѕРіСЂР°РјРјРёСЂРѕРІР°РЅРёСЏ', 35, N'РџСЂР°РєС‚РёРєР°'),
+(4, 1, 2, N'Р”РёС„С„РµСЂРµРЅС†РёР°Р»СЊРЅС‹Рµ СѓСЂР°РІРЅРµРЅРёСЏ РІ СЌРєРѕРЅРѕРјРёРєРµ', 45, N'Р›Р°Р±РѕСЂР°С‚РѕСЂРЅС‹Рµ СЂР°Р±РѕС‚С‹');
 
 EXEC EnrollInElective 1, 1, 1;
 EXEC EnrollInElective 2, 2, 2;
@@ -326,10 +326,10 @@ exec MinimumSatisfied 1, 1;
 
 GO
 /*
-exec CreateSemester 3, N'2022/2023осень'; -- rollback 
+exec CreateSemester 3, N'2022/2023РѕСЃРµРЅСЊ'; -- rollback 
 
 insert into elective_view values 
-(6, 1, 2, N'Вычислительная теория групп', 15, N'Лекции'); -- ehours constraint
+(6, 1, 2, N'Р’С‹С‡РёСЃР»РёС‚РµР»СЊРЅР°СЏ С‚РµРѕСЂРёСЏ РіСЂСѓРїРї', 15, N'Р›РµРєС†РёРё'); -- ehours constraint
 
 EXEC EnrollInElective 4, 1, 3;
 EXEC GradeStudentOnElective 2, -1, '2019-03-08'; -- grade_logic constraint
