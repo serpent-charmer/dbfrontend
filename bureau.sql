@@ -1,4 +1,6 @@
 use bureau;
+drop table if exists reputation_change;
+drop table if exists reputation;
 DROP table IF EXISTS contract;
 DROP table IF EXISTS vacancy ;
 DROP table IF EXISTS employer;
@@ -30,7 +32,8 @@ CREATE TABLE vacancy (
             ref_employer INT(11) NOT NULL,
             PRIMARY KEY(id),
 			FOREIGN KEY(ref_employer) REFERENCES employer (id),
-            CONSTRAINT no_trainee_testers CHECK (job_desc NOT IN ('Тестировщик') AND experience <= 1) 
+            CONSTRAINT no_trainee_testers CHECK 
+            (job_desc NOT IN ('Тестировщик') AND experience >= 1) 
 ) CHARACTER SET utf8mb4;
 
 CREATE TABLE contract (
@@ -45,7 +48,91 @@ CREATE TABLE contract (
         ) CHARACTER SET utf8mb4;
         
 
-        
+create table reputation (
+	id int auto_increment,
+    ref_employer_id int,
+    amt int default 0,
+    primary key(id),
+    foreign key(ref_employer_id) references employer(id)
+) CHARACTER SET utf8mb4;
+
+create table reputation_change(
+	rep_change int,
+    ref_employer int not null,
+    foreign key(ref_employer) references employer(id)
+);
+
+delimiter //
+CREATE TRIGGER rep_check after INSERT ON employer
+       FOR EACH ROW
+       BEGIN
+            insert into reputation (ref_employer_id) values(NEW.id);
+       END;//
+delimiter ;
+
+
+drop procedure if exists vacancy_status_condition_SoftwareEng;
+delimiter //
+create procedure vacancy_status_condition_SoftwareEng(
+IN employer_id int,
+IN job_desc VARCHAR(255) CHARACTER SET utf8mb4,
+IN exp INT,
+IN salary INT)
+begin
+	if @job_desc in ( 'Программист' ) and @exp >= 2 and @salary < 5000 then
+		insert into reputation_change(rep_change, ref_employer) values (-1, @employer_id);
+    end if;
+end//
+delimiter ;
+
+
+drop procedure if exists vacancy_status_condition_MinReq;
+delimiter //
+create procedure vacancy_status_condition_MinReq(
+IN employer_id int,
+IN job_desc VARCHAR(255) CHARACTER SET utf8mb4,
+IN exp INT,
+IN salary INT)
+begin
+	if @salary < 1500 then
+		insert into reputation_change(rep_change, ref_employer) values (-1, @employer_id);
+    end if;
+end//
+delimiter ;
+
+drop procedure if exists run_status_condition;
+delimiter //
+create procedure run_status_condition(
+IN employer_id int,
+IN job_desc VARCHAR(255) CHARACTER SET utf8mb4,
+IN exp INT,
+IN salary INT)
+begin
+	declare proc_name VARCHAR(255);
+    declare query_str VARCHAR(255);
+	declare done int DEFAULT FALSE;
+	declare cur2 CURSOR FOR (select routine_name from 
+    INFORMATION_SCHEMA.ROUTINES WHERE 
+    ROUTINE_NAME LIKE '%vacancy_status_condition%');
+	declare CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+	OPEN cur2;
+	 read_loop: LOOP
+		FETCH cur2 INTO proc_name;
+		IF DONE THEN
+			LEAVE read_loop;
+		ELSE
+			set @query_str = concat('call', ' ', proc_name, '(?, ?, ?, ?)');
+			prepare stmt from @query_str;
+            set @employer_id = employer_id;
+			set @job_desc = job_desc;
+			set @exp = exp;
+			set @salary = salary;
+			execute stmt using @employer_id, @job_desc, @exp, @salary;
+		END IF;
+	 END LOOP;
+	 CLOSE cur2;
+end//
+delimiter ;
 
             
 DROP procedure IF EXISTS CREATE_CONTRACT;
@@ -63,11 +150,11 @@ CREATE PROCEDURE CREATE_CONTRACT (IN employer_name VARCHAR(255) CHARSET utf8mb4,
 			  START TRANSACTION;
               BEGIN
                 DECLARE vid INT DEFAULT NULL;
-				SET vid = (select id from vacancy where ref_employer = (select id from employer where name = employer_name) and job_desc = profession);
+				SET vid = (select id from vacancy where ref_employer = 
+                (select id from employer where name = employer_name) and job_desc = profession);
          if(vid IS NOT NULL) then
-            INSERT INTO contract (ref_employer, ref_employee, ref_vacancy, comissions) 
+            INSERT INTO contract (ref_employee, ref_vacancy, comissions) 
 			 VALUES(
-             (select id from employer where name = employer_name),
 			 employee_id,
 			 vid, comissions);
 		 else
@@ -85,9 +172,20 @@ CREATE PROCEDURE CREATE_VACANCY (IN employer_name VARCHAR(255) CHARSET utf8mb4,
                                     IN experience INT(11),
                                     IN salary INT(11))
        BEGIN
-         DECLARE eid INT DEFAULT NULL;
-         SET eid = (select id from employer where name = employer_name);
-		 INSERT INTO vacancy (job_desc, experience, ref_employer, salary) VALUES(job_desc, experience, eid, salary);
+         declare ref_employer int;
+         declare rep_change int;
+         set @ref_employer = (select id from employer where name = employer_name);
+		 INSERT INTO vacancy (job_desc, experience, ref_employer, salary) 
+         VALUES(job_desc, experience, @ref_employer, salary);
+         call run_status_condition(@ref_employer, job_desc, experience, salary);
+         set @rep_change = (select sum(reputation_change.rep_change) from reputation_change 
+         where reputation_change.ref_employer = @ref_employer);
+         if(@rep_change is not null) then
+			update reputation set reputation.amt = reputation.amt + @rep_change where ref_employer_id = @ref_employer;
+			delete from reputation_change where reputation_change.ref_employer = @ref_employer;
+         end if;
+         
+         
        END//
 DELIMITER ;
 
@@ -102,8 +200,18 @@ CREATE PROCEDURE CREATE_VACANCY_API (IN employer_id INT(11),
        END//
 DELIMITER ;
 
+DROP VIEW IF EXISTS GET_JOBS_ALL;
+CREATE VIEW GET_JOBS_ALL AS SELECT 
+job_desc, name, experience, salary from vacancy 
+left join employer on vacancy.ref_employer = employer.id;
+
 DROP VIEW IF EXISTS GET_JOBS;
-CREATE VIEW GET_JOBS AS SELECT job_desc, name, experience, salary from vacancy left join employer on vacancy.ref_employer = employer.id;
+CREATE VIEW GET_JOBS AS SELECT 
+job_desc, lf1.name, experience, salary from vacancy 
+left join 
+(select employer.id, employer.name, reputation.amt from employer 
+left join reputation on employer.id = reputation.ref_employer_id) lf1
+on vacancy.ref_employer = lf1.id where lf1.amt >= 0;
 
 DROP VIEW IF EXISTS EMPLOYER_VIEW;
 CREATE VIEW EMPLOYER_VIEW AS SELECT employer.name, employer.address, employer.phone_number from employer;
@@ -111,25 +219,23 @@ CREATE VIEW EMPLOYER_VIEW AS SELECT employer.name, employer.address, employer.ph
 DROP VIEW IF EXISTS EMPLOYEE_VIEW;
 CREATE VIEW EMPLOYEE_VIEW AS SELECT employee.name, surname, third_name, profession, email from employee;
 
-
-
 DROP procedure IF EXISTS GET_CONTRACTS;
 DELIMITER //
 CREATE PROCEDURE GET_CONTRACTS()
        BEGIN
-         SELECT vacancy.job_desc as hired, lf2.id, lf2.ename, lf2.name, lf2.surname, lf2.third_name, lf2.payed, lf2.comissions FROM (SELECT lf1.ref_vacancy,lf1.id,ename,name,surname,third_name,payed,comissions FROM 
-			 (SELECT contract.id,ref_vacancy, comissions, name as ename, payed, ref_employee from contract 
-			 left join employer on contract.ref_employer = employer.id) lf1 
-         left join employee on lf1.ref_employee = employee.id) lf2 left join vacancy on lf2.ref_vacancy = vacancy.id;
+         select vacancy.job_desc, employer.name, employee.name, employee.surname, contract.comissions from 
+         contract left join vacancy on contract.ref_vacancy = vacancy.id
+         left join employer on vacancy.ref_employer = employer.id
+         left join employee on contract.ref_employee = employee.id;
        END//
 DELIMITER ;
 
 DROP procedure IF EXISTS PAY_CONTRACT;
 DELIMITER //
-CREATE PROCEDURE PAY_CONTRACT()
+CREATE PROCEDURE PAY_CONTRACT(ref_id INT)
        BEGIN
-         SELECT hired,ename,name,surname,third_name,payed,comissions FROM (SELECT comissions, profession as hired, name as ename, payed, ref_employee from contract left join employer on contract.ref_employer = employer.id) lf1 left join employee on lf1.ref_employee = employee.id;
-       END//
+			update contract set payed = 1 where id = ref_id;
+	   END//
 DELIMITER ;
 
 DROP procedure IF EXISTS REPORT_PROFS;
@@ -161,13 +267,17 @@ CREATE PROCEDURE REPORT_PROFS()
 DELIMITER ;
 
 
+
+
 delimiter //
-CREATE TRIGGER upd_check BEFORE INSERT ON vacancy
+CREATE TRIGGER upd_check BEFORE INSERT ON contract
        FOR EACH ROW
        BEGIN
-            if(NEW.experience >= 2 and NEW.salary <= 15000) then
-				SET @s = CONCAT('Для опыта работы больше двух лет минимальная з/р 15т.');
-				SIGNAL SQLSTATE '45001' SET MESSAGE_TEXT = @s;
+			declare rep_amt int;
+			set @amt = (select amt from reputation where reputation.ref_employer_id =
+			(select ref_employer from vacancy where vacancy.id = NEW.ref_vacancy));
+            if @amt < 0 then
+				set NEW.comissions = NEW.comissions * abs(@amt);
             end if;
        END;//
 delimiter ;
@@ -196,12 +306,26 @@ INSERT INTO EMPLOYEE_VIEW (name, surname, third_name, profession, email) VALUES
 
 CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "ФинТех Аналитик", 5, 25000);
 CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "Программист", 2, 35000);
-CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "Тестировщик", 0, 5000);
-CALL CREATE_CONTRACT("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", 1, "ФинТех Аналитик", 150);
-SELECT * from contract;
-delete from contract;
-select * from vacancy;
+CALL CREATE_VACANCY("ОАО Рога И Копыта", "ФинТех Аналитик", 4, 7150);
+CALL CREATE_VACANCY("ОАО Рога И Копыта", "Программист", 3, 1150);
+CALL CREATE_CONTRACT("ОАО Рога И Копыта", 1, "Программист", 1150);
+CALL CREATE_CONTRACT("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", 4, "Программист", 1150);
+
 select * from GET_JOBS;
+select * from GET_JOBS_ALL;
+
+CALL GET_CONTRACTS;
 
 CALL REPORT_PROFS;
 
+
+CREATE ROLE developer, administrator;
+
+
+CREATE USER 'dbdeveloper'@'localhost'
+  IDENTIFIED BY 'password' DEFAULT ROLE developer;
+CREATE USER 'dbadmin'@'localhost'
+  IDENTIFIED BY 'password' DEFAULT ROLE administrator;
+  
+  
+CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "Тестировщик", 0, 5000);
