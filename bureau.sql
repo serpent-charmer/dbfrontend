@@ -1,8 +1,8 @@
 use bureau;
-drop table if exists reputation_change;
-drop table if exists reputation;
+drop table if exists reputation_change_neg;
+drop table if exists reputation_change_pos;
 DROP table IF EXISTS contract;
-DROP table IF EXISTS vacancy ;
+DROP table IF EXISTS vacancy;
 DROP table IF EXISTS employer;
 DROP table IF EXISTS employee;
 
@@ -47,29 +47,21 @@ CREATE TABLE contract (
             FOREIGN KEY(ref_vacancy) REFERENCES vacancy (id)
         ) CHARACTER SET utf8mb4;
         
-
-create table reputation (
-	id int auto_increment,
-    ref_employer_id int,
-    amt int default 0,
-    primary key(id),
-    foreign key(ref_employer_id) references employer(id)
-) CHARACTER SET utf8mb4;
-
-create table reputation_change(
+create table reputation_change_neg (
 	rep_change int,
     ref_employer int not null,
+    condition_violated varchar(255) CHARACTER SET utf8mb4,
     foreign key(ref_employer) references employer(id)
 );
 
-delimiter //
-CREATE TRIGGER rep_check after INSERT ON employer
-       FOR EACH ROW
-       BEGIN
-            insert into reputation (ref_employer_id) values(NEW.id);
-       END;//
-delimiter ;
-
+create table reputation_change_pos (
+	rep_change int,
+    ref_employer int not null,
+    ref_employee int not null,
+    review_text text CHARACTER SET utf8mb4,
+    foreign key(ref_employer) references employer(id),
+    foreign key(ref_employee) references employee(id)
+);
 
 drop procedure if exists vacancy_status_condition_SoftwareEng;
 delimiter //
@@ -80,7 +72,9 @@ IN exp INT,
 IN salary INT)
 begin
 	if @job_desc in ( 'Программист' ) and @exp >= 2 and @salary < 5000 then
-		insert into reputation_change(rep_change, ref_employer) values (-1, @employer_id);
+		insert into reputation_change_neg
+        (rep_change, ref_employer, condition_violated) 
+        values (-1, @employer_id, 'vacancy_status_condition_SoftwareEng');
     end if;
 end//
 delimiter ;
@@ -95,7 +89,9 @@ IN exp INT,
 IN salary INT)
 begin
 	if @salary < 1500 then
-		insert into reputation_change(rep_change, ref_employer) values (-1, @employer_id);
+		insert into reputation_change_neg
+        (rep_change, ref_employer, condition_violated) 
+        values (-1, @employer_id, 'vacancy_status_condition_MinReq');
     end if;
 end//
 delimiter ;
@@ -173,19 +169,10 @@ CREATE PROCEDURE CREATE_VACANCY (IN employer_name VARCHAR(255) CHARSET utf8mb4,
                                     IN salary INT(11))
        BEGIN
          declare ref_employer int;
-         declare rep_change int;
          set @ref_employer = (select id from employer where name = employer_name);
 		 INSERT INTO vacancy (job_desc, experience, ref_employer, salary) 
          VALUES(job_desc, experience, @ref_employer, salary);
          call run_status_condition(@ref_employer, job_desc, experience, salary);
-         set @rep_change = (select sum(reputation_change.rep_change) from reputation_change 
-         where reputation_change.ref_employer = @ref_employer);
-         if(@rep_change is not null) then
-			update reputation set reputation.amt = reputation.amt + @rep_change where ref_employer_id = @ref_employer;
-			delete from reputation_change where reputation_change.ref_employer = @ref_employer;
-         end if;
-         
-         
        END//
 DELIMITER ;
 
@@ -207,11 +194,26 @@ left join employer on vacancy.ref_employer = employer.id;
 
 DROP VIEW IF EXISTS GET_JOBS;
 CREATE VIEW GET_JOBS AS SELECT 
-job_desc, lf1.name, experience, salary from vacancy 
+job_desc, lf1.name, experience, salary 
+from vacancy 
 left join 
-(select employer.id, employer.name, reputation.amt from employer 
-left join reputation on employer.id = reputation.ref_employer_id) lf1
-on vacancy.ref_employer = lf1.id where lf1.amt >= 0;
+(select employer.id, employer.name, 
+(select sum(rep_change) from 
+reputation_change_neg where ref_employer = employer.id) as rep_change from employer) lf1
+on vacancy.ref_employer = lf1.id order by lf1.rep_change asc;
+
+DROP VIEW IF EXISTS GET_JOBS_ALL;
+CREATE VIEW GET_JOBS_ALL AS SELECT 
+job_desc, name, experience, salary from vacancy 
+left join employer on vacancy.ref_employer = employer.id;
+
+DROP VIEW IF EXISTS GET_REVIEWS;
+CREATE VIEW GET_REVIEWS AS SELECT 
+concat(employee.name, ' ', employee.surname, ' ', employee.third_name) 
+as EmployeeName, employer.name as EmployerName, review_text from reputation_change_pos
+left join employee on ref_employee = employee.id
+left join employer on ref_employer = employer.id;
+
 
 DROP VIEW IF EXISTS EMPLOYER_VIEW;
 CREATE VIEW EMPLOYER_VIEW AS SELECT employer.name, employer.address, employer.phone_number from employer;
@@ -238,35 +240,14 @@ CREATE PROCEDURE PAY_CONTRACT(ref_id INT)
 	   END//
 DELIMITER ;
 
-DROP procedure IF EXISTS REPORT_PROFS;
+DROP procedure IF EXISTS CREATE_REVIEW;
 DELIMITER //
-CREATE PROCEDURE REPORT_PROFS()
+CREATE PROCEDURE CREATE_REVIEW(ref_employee_id int, ref_employer_id int, _text text)
        BEGIN
-         DECLARE prof VARCHAR(255);
-         DECLARE rs TEXT DEFAULT "";
-         DECLARE done int DEFAULT FALSE;
-         DECLARE cur2 CURSOR FOR SELECT profession FROM employee GROUP BY profession;
-		 DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
-         OPEN cur2;
-         
-         read_loop: LOOP
-			FETCH cur2 INTO prof;
-            IF DONE THEN
-				LEAVE read_loop;
-			ELSE
-                SET rs = CONCAT(rs, prof, ";");
-            END IF;
-            
-         END LOOP;
-         
-         CLOSE cur2;
-         
-         SELECT rs as "Список профессий";
-         
-	  END//
+			insert into reputation_change_pos (rep_change, ref_employee, ref_employer, review_text)
+            values(1, ref_employee_id, ref_employer_id, _text);
+	   END//
 DELIMITER ;
-
-
 
 
 delimiter //
@@ -274,7 +255,7 @@ CREATE TRIGGER upd_check BEFORE INSERT ON contract
        FOR EACH ROW
        BEGIN
 			declare rep_amt int;
-			set @amt = (select amt from reputation where reputation.ref_employer_id =
+			set @amt = (select sum(rep_change) from reputation_change_neg where reputation_change_neg.ref_employer =
 			(select ref_employer from vacancy where vacancy.id = NEW.ref_vacancy));
             if @amt < 0 then
 				set NEW.comissions = NEW.comissions * abs(@amt);
@@ -304,15 +285,22 @@ INSERT INTO EMPLOYEE_VIEW (name, surname, third_name, profession, email) VALUES
             ("Глеб", "Иванович", "Грепов", "Программист", "glebo423423@mail.ru"),
             ("Петр", "Сергеевич", "Алишеров", "Бухгалтер", "verkLPO31314@mail.ru");
 
-CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "ФинТех Аналитик", 5, 25000);
-CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "Программист", 2, 35000);
+CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "ФинТех Аналитик", 5, 25100);
+CALL CREATE_VACANCY("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", "Программист", 2, 15000);
 CALL CREATE_VACANCY("ОАО Рога И Копыта", "ФинТех Аналитик", 4, 7150);
 CALL CREATE_VACANCY("ОАО Рога И Копыта", "Программист", 3, 1150);
 CALL CREATE_CONTRACT("ОАО Рога И Копыта", 1, "Программист", 1150);
 CALL CREATE_CONTRACT("ООО-ГУПНИИПТЕПЛОЦЕНТРАЛЬ", 4, "Программист", 1150);
 
+select * from reputation_change_neg;
+
 select * from GET_JOBS;
 select * from GET_JOBS_ALL;
+
+CALL CREATE_REVIEW(1, 2, 'Оплачиваемая стажировка!');
+CALL CREATE_REVIEW(3, 3, 'Кипяток на кофепоинте!');
+CALL CREATE_REVIEW(4, 2, 'Молодой и энергичный коллектив!');
+select * from GET_REVIEWS;
 
 CALL GET_CONTRACTS;
 
